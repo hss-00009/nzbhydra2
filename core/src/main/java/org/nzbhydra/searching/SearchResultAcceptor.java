@@ -100,6 +100,9 @@ public class SearchResultAcceptor {
             if (!checkMinSeeders(indexerConfig, reasonsForRejection, item)) {
                 continue;
             }
+            if (!checkAttributeWhitelist(reasonsForRejection, item)) {
+                continue;
+            }
 
             //Forbidden words from query
             if (!checkForForbiddenWords(indexerConfig, reasonsForRejection, searchRequest.getInternalData().getForbiddenWords(), item, "internal data")) {
@@ -283,6 +286,60 @@ public class SearchResultAcceptor {
         }
 
         return true;
+    }
+
+    private List<String> getMockConfiguration() {
+        List<String> mockConfiguration = new ArrayList<>();
+        mockConfiguration.add("subs=English");
+        mockConfiguration.add("subs=French,Japanese");
+        return mockConfiguration;
+    }
+
+    /*todo Create a new field inside of the indexer configuration so that each indexer can be individually customized
+        Replace placeholder getMockConfiguration() with new config bound to UI
+        List<String> configuration = item.getIndexer().getConfig().getPostSearchAttributeWhitelist();
+    */
+    private boolean checkAttributeWhitelist(Multiset<String> reasonsForRejection, SearchResultItem item) {
+        Map<String, Set<String>> attributeWhitelists = new HashMap<>();
+        for (String whitelistConfig : getMockConfiguration()) {
+            int equalsIndex = whitelistConfig.indexOf('=');
+            if (equalsIndex == -1 || equalsIndex == 0 || equalsIndex == whitelistConfig.length() - 1) {
+                logger.error(LoggingMarkers.RESULT_ACCEPTOR, "Attribute Whitelist configuration \"{}\" does not match the expected format \"AttributeName=AttributeValue\"", whitelistConfig);
+                continue;
+            }
+            String attributeName = whitelistConfig.substring(0, equalsIndex).trim().toLowerCase();
+            String attributeValue = whitelistConfig.substring(equalsIndex + 1).trim().toLowerCase();
+            attributeWhitelists.computeIfAbsent(attributeName, k -> new HashSet<>()).add(attributeValue);
+        }
+        for (Map.Entry<String, String> itemAttribute : item.getAttributes().entrySet()) {
+            String itemAttributeName = itemAttribute.getKey().trim().toLowerCase();
+            String itemAttributeValue = itemAttribute.getValue().trim().toLowerCase();
+            Set<String> whitelistedValues = attributeWhitelists.get(itemAttributeName);
+            if (whitelistedValues != null) {
+                for (String whitelistValue : whitelistedValues) {
+                    if (whitelistValue.contains(",")) {
+                        String[] requiredValues = whitelistValue.split("\\s*,\\s*");
+                        boolean hasAllRequiredValues = true;
+                        for (String requiredValue : requiredValues) {
+                            if (!itemAttributeValue.contains(requiredValue.trim().toLowerCase())) {
+                                hasAllRequiredValues = false;
+                                break;
+                            }
+                        }
+                        if (hasAllRequiredValues) {
+                            return true;
+                        }
+                    } else {
+                        if (itemAttributeValue.contains(whitelistValue.trim().toLowerCase())) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        reasonsForRejection.add("Did not match Attribute Whitelist");
+        logger.debug(LoggingMarkers.RESULT_ACCEPTOR, "Did not match Attribute Whitelist \"{}\"", attributeWhitelists);
+        return false;
     }
 
     protected boolean checkRequiredWords(Multiset<String> reasonsForRejection, List<String> requiredWords, SearchResultItem item, String source) {
