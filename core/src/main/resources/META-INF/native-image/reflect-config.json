@@ -13917,6 +13917,10 @@
           "parameterTypes": []
       },
       {
+          "name": "getAttributeWhitelist",
+          "parameterTypes": []
+      },
+      {
           "name": "getDisabledAt",
           "parameterTypes": []
       },
@@ -14076,6 +14080,12 @@
       },
       {
           "name": "setCustomParameters",
+          "parameterTypes": [
+              "java.util.List"
+          ]
+      },
+      {
+          "name": "setAttributeWhitelist",
           "parameterTypes": [
               "java.util.List"
           ]
@@ -47723,6 +47733,10 @@
         "name": "getCustomParameters",
         "parameterTypes": []
       },
+        {
+            "name": "setAttributeWhitelist",
+            "parameterTypes": []
+        },
       {
         "name": "setName",
         "parameterTypes": [
@@ -47920,6 +47934,12 @@
           "java.util.List"
         ]
       },
+        {
+            "name": "setAttributeWhitelist",
+            "parameterTypes": [
+                "java.util.List"
+            ]
+        },
       {
         "name": "isConfigComplete",
         "parameterTypes": []

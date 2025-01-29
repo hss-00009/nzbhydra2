@@ -3995,6 +3995,25 @@ function getIndexerBoxFields(indexerModel, parentModel, isInitial, CategoriesSer
         )
     }
 
+    if (indexerModel.searchModuleType === 'NEWZNAB') {
+        fieldset.push(
+            {
+                key: 'attributeWhitelist',
+                type: 'horizontalChips',
+                templateOptions: {
+                    type: 'text',
+                    required: false,
+                    label: 'Attribute Whitelist',
+                    help:
+                        'Define rules to filter metadata. Use format "name=value" for individual filters (OR search) or "name=value1,value2" for multiple values (AND search). Apply with return key.\n' +
+                        'Example: "subs=English" will return items with English subtitles. "subs=Japanese,French" will return items with both Japanese and French subtitles. ' +
+                        'If both rules are used, results will include items with either English subtitles or items with both Japanese and French subtitles.',
+                    advanced: 'true'
+                }
+            }
+        )
+    }
+
     fieldset.push(
         {
             key: 'preselect',

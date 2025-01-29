@@ -69,8 +69,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import static java.time.Instant.now;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -102,6 +104,8 @@ public class NewznabTest {
     private UriComponentsBuilder uriComponentsBuilderMock;
     @Mock
     private SearchResultAcceptor resultAcceptorMock;
+    @InjectMocks
+    private SearchResultAcceptor searchResultAcceptor;
     @Mock
     private Unmarshaller unmarshallerMock;
     @Mock
@@ -156,6 +160,7 @@ public class NewznabTest {
         testee.config.setSupportedSearchIds(Lists.newArrayList(MediaIdType.TMDB, MediaIdType.TVRAGE));
         testee.config.setHost("http://127.0.0.1:1234");
         testee.config.setForbiddenWordPrefix(IndexerConfig.ForbiddenWordPrefix.EXCLAMATION_MARK);
+        testee.config.setAttributeWhitelist(Arrays.asList("subs=English", "subs=Japanese,French"));
         testee.indexer = indexerEntityMock;
         Field field = Indexer.class.getDeclaredField("titleMapping");
         field.setAccessible(true);
@@ -245,6 +250,42 @@ public class NewznabTest {
         assertThat(indexerSearchResult.getTotalResults()).isEqualTo(105);
         assertThat(indexerSearchResult.isHasMoreResults()).isEqualTo(false);
         assertThat(indexerSearchResult.isTotalResultsKnown()).isEqualTo(true);
+    }
+
+    @Test
+    void shouldRejectItemNotMatchingAttributeWhitelist() throws Exception {
+        NzbGeek nzbGeek = new NzbGeek();
+        nzbGeek.config = testee.config;
+        Instant instant = now();
+        Category category = new Category("TV");
+        category.setIgnoreResultsFrom(SearchSourceRestriction.NONE);
+        category.setApplyRestrictionsType(SearchSourceRestriction.NONE);
+        Object[][] resultItems = new Object[][]{
+            {"title_1", 1, "link", nzbGeek, "000001", instant, category, Map.of("subs", "English")}, //Accept
+            {"title_2", 1, "link", nzbGeek, "000002", instant, category, Map.of("subs", "French,Japanese")}, //Accept
+            {"title_3", 1, "link", nzbGeek, "000003", instant, category, Map.of("subs", "English,Japanese")}, //Accept
+            {"title_4", 1, "link", nzbGeek, "000004", instant, category, Map.of("subs", "RejectMe")}, //Reject
+            {"title_5", 1, "link", nzbGeek, "000005", instant, category, Map.of("subs", "RejectMe,Japanese")}, //Reject
+            {"title_6", 1, "link", nzbGeek, "000006", instant, category, null} //Reject
+        };
+        List<SearchResultItem> searchResultItems = new ArrayList<>();
+        for (int i = 0; i < resultItems.length; i++) {
+            SearchResultItem item = new SearchResultItem();
+            item.setTitle((String) resultItems[i][0]);
+            item.setIndexerScore((int) resultItems[i][1]);
+            item.setLink((String) resultItems[i][2]);
+            item.setIndexer((Indexer) resultItems[i][3]);
+            item.setIndexerGuid((String) resultItems[i][4]);
+            item.setUsenetDate((Instant) resultItems[i][5]);
+            item.setCategory((Category) resultItems[i][6]);
+            item.setAttributes((Map<String, String>) resultItems[i][7]);
+            searchResultItems.add(item);
+        }
+        SearchRequest searchRequest = new SearchRequest(SearchSource.INTERNAL, SearchType.SEARCH, 0, 100);
+        AcceptorResult acceptorResult = searchResultAcceptor.acceptResults(searchResultItems, searchRequest, testee.config);
+        assertEquals(acceptorResult.getAcceptedResults().size(), 3);
+        assertEquals(acceptorResult.getReasonsForRejection().size(), 3);
+        assertEquals(searchResultItems.size(), 6);
     }
 
     @Test

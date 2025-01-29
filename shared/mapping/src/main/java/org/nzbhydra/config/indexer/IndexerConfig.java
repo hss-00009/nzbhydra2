@@ -100,6 +100,7 @@ public class IndexerConfig {
     @SensitiveData
     private String password = null;
     private List<String> customParameters = new ArrayList<>();
+    private List<String> attributeWhitelist = new ArrayList<>();
     private boolean preselect = true;
     private List<String> schedule = new ArrayList<>();
     private int score;
